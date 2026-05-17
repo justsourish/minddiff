@@ -2,15 +2,15 @@
 
 > Preserving cognitive traces alongside repository evolution.
 
-**Status:** *Experimental Exploration. This is not a finalized product, but an ongoing investigation into preserving cognitive continuity during AI-assisted engineering.*
+**Status:** *Experimental Exploration. This is an active systems and tooling experiment investigating how to preserve cognitive continuity and observability during AI-assisted engineering.*
 
 ---
 
 ## The Bottleneck: Generation vs. Comprehension
 
-Modern AI coding tools dramatically increase code generation speed. They can rapidly synthesize architecture, business logic, debugging fixes, refactors, and large implementations.
+Modern AI coding tools dramatically increase code generation speed. They rapidly synthesize architecture, business logic, debugging fixes, refactors, and large implementations.
 
-But human comprehension, memory, and reasoning continuity do not scale at the same speed. Developers are still responsible for understanding the code, debugging it, safely modifying it, maintaining production systems, and reasoning about architectural decisions weeks or months later.
+But human comprehension, memory, and reasoning continuity do not scale at the same speed. Developers remain responsible for understanding the code, debugging it, safely modifying it, maintaining production systems, and reasoning about architectural decisions weeks or months later.
 
 This creates a new engineering bottleneck:
 
@@ -26,102 +26,94 @@ Git is the source of truth for repository evolution. It perfectly solves:
 - Branching and merging
 - Snapshots
 
-However, Git tracks the *outcome* of reasoning, not the reasoning itself. In an AI-native workflow, much of the exploratory context, debugging logic, and architectural rationale is generated in ephemeral chat contexts or temporary logs, which are lost once the code is committed. 
+However, Git tracks the *outcome* of reasoning, not the reasoning itself. In an AI-native workflow, much of the exploratory context, debugging logic, and architectural rationale is generated in ephemeral chat contexts or temporary logs, which are lost once the code is committed.
 
 MindDiff **does not replace Git.** It exists to augment it, preserving cognitive traces alongside repository evolution.
 
 ## What MindDiff Is
 
-MindDiff is an exploratory system for cognitive state preservation during AI-assisted engineering.
+MindDiff is an observability and continuity layer around AI-assisted engineering workflows.
 
-It recognizes that AI systems already output valuable artifacts: implementation summaries, reasoning, debugging explanations, architectural decisions, and change rationales. MindDiff simply captures, timestamps, attaches Git context, and preserves these reasoning traces.
+Originally conceptualized as a static logging system, MindDiff has evolved into an active runtime wrapper around AI terminal workflows. It observes AI-native engineering sessions in real time by wrapping the underlying CLI tools, capturing the live terminal byte stream, and preserving it locally within the repository.
 
-Importantly, MindDiff logs evolve *with* the repository:
-- Logs live inside the repository.
+MindDiff does not generate intelligence, replace your IDE, or act as an agent framework. It simply captures, timestamps, attaches context, and preserves existing reasoning traces.
+
+Crucially, these logs evolve *with* the repository:
+- Logs live inside the repository (`/minddiff/logs`).
 - Logs are committed with code.
 - Branches naturally fork cognition.
 - Merges naturally merge cognition.
 - Deleted branches naturally remove abandoned exploration paths.
 
-This ensures strict continuity between implementation evolution and reasoning evolution.
+## Runtime Wrapper Architecture
 
-## What MindDiff is NOT
+MindDiff operates by wrapping AI CLI tools (like Gemini CLI) in a pseudo-terminal (PTY) using `node-pty`. This architecture allows it to:
+- Preserve the native interactive terminal UX (colors, prompts, screen clearing).
+- Intercept the live `stdout` and `stderr` byte streams.
+- Append the session stream to local repo-native logs.
+- Expose the stream for passive live observation from another terminal.
 
-- **Not Documentation:** Documentation attempts to become polished, canonical, curated, and stable. Cognitive traces are temporal, contextual, partial, exploratory, sometimes wrong, but still valuable later.
-- **Not an AI Wrapper/IDE:** MindDiff does not try to be your editor or a new platform.
-- **Not an "AI Operating System":** There are no heavy abstractions.
-- **Not Generating Intelligence:** MindDiff preserves *existing* AI reasoning; it does not generate new reasoning.
+## How It Currently Works
+
+1. **Launch:** Instead of running your AI CLI directly, you run it through MindDiff.
+2. **Passthrough:** MindDiff allocates a PTY, spawns the target CLI, and pipes your input and its output transparently. You interact with the AI exactly as you normally would.
+3. **Interception:** As the session progresses, MindDiff tees the raw PTY stream to a timestamped, append-only log file in the local `./minddiff/logs/` directory.
+4. **Observation:** A separate terminal can tail this stream using the `watch` command, allowing developers to observe the AI's cognitive process in real time.
+
+## Example Workflow
+
+The architecture enables a powerful separation of concerns during complex engineering tasks:
+
+```bash
+# Terminal 1 (The Driver): Start an active AI engineering session
+npm run dev -- gemini
+
+# Terminal 2 (The Observer): Passively watch the cognition stream evolve
+npm run dev -- watch
+```
+
+In this setup, Terminal 1 drives the active session, while Terminal 2 passively observes the cognition stream's evolution. This allows for real-time review and monitoring without interrupting the active prompt interface.
+
+## Current Commands
+
+- `minddiff <command>`: Wraps the given CLI command in a PTY, intercepting and logging the session to `./minddiff/logs/`.
+- `minddiff watch`: Tails the most recent log file in the repository, rendering the raw PTY stream (including ANSI escape codes) for live observability.
+
+## PTY, Watch, and Terminal Reality
+
+By utilizing a PTY, MindDiff ensures that the underlying AI tool believes it is attached to a real terminal. This is critical for tools that rely on interactive prompts or rich terminal UIs. The intercepted stream includes all ANSI escape codes, cursor movements, and rendering commands.
+
+The `watch` command leverages this by reading the raw byte stream from the log file and writing it directly to standard output. This effectively replays the terminal state, allowing you to observe the UI and reasoning process exactly as it appeared to the primary user, updating in real time as new bytes are appended.
 
 ## Design Philosophy
 
-The system is intentionally simple and adheres to strict constraints to minimize friction:
+The system is intentionally simple, terminal-native, and adheres to strict constraints:
 - **Repo-native:** Lives alongside your code.
 - **Git-compatible:** Leverages your existing VCS.
 - **Local-first:** No cloud dependency required to read your own project history.
 - **Append-only:** Traces are written and preserved, not retroactively polished.
-- **Markdown-readable:** Plain text files that any tool can parse.
-- **Low cognitive overhead:** Out of the way until you need it.
-- **No vector database or heavy indexing (initially):** Simplicity over complex retrieval systems.
-- **Unmodified Preservation:** Preserves the AI’s original reasoning/output as much as possible instead of heavily transforming or interpreting it.
+- **Terminal-native:** Respects standard Unix streams and terminal semantics.
+- **Unmodified Preservation:** Preserves the AI’s original output stream as much as possible instead of heavily transforming or interpreting it.
 
-## Proposed V1 Structure
+## Raw Stream ≠ Semantic Cognition
 
-The first milestone is explicitly **not** building a platform. The goal is validating whether preserving AI reasoning alongside Git evolution meaningfully improves developer cognition and workflow continuity.
+A critical discovery in this evolution is that the terminal protocol (ANSI redraws, PTY rendering, cursor movements) is distinct from the semantic reasoning layer. 
 
-MindDiff stores raw, timestamped logs inside a dedicated directory in your repository.
+MindDiff currently captures terminal reality before interpretation.
 
-```
-/minddiff
-  /logs
-    2026-05-17T03-36-22-navbar-motion-fix.md
-    2026-05-17T04-02-11-auth-routing-debug.md
-```
+This is a deliberate architectural choice. Before attempting to build complex parsers, semantic extractors, or "smart" summaries, the system prioritizes a robust, high-fidelity source of truth. Every UI rendering, every backspace, and every reasoning trace is captured exactly as it occurred in the terminal.
 
-### Why this structure?
+## Current Limitations
 
-Timestamp + slug naming helps with:
-- Chronological sorting
-- Human scanning
-- Git diffs
-- VS Code (or any editor) navigation
-- Future retrieval
+- **Raw ANSI Streams:** Because the logs store the raw PTTY byte stream, they are optimal for terminal replay (`watch`) but difficult to read in standard Markdown viewers due to the presence of ANSI escape codes.
+- **Platform Support:** The PTY implementation (`node-pty`) can be environmentally sensitive, particularly on ARM architectures.
+- **No Semantic Extraction:** The system does not yet parse the raw stream to extract clean, semantic Markdown summaries.
 
-### Example Log Content
+## Future Exploration Areas
 
-A single log file captures the immediate context of an AI interaction:
-
-```markdown
----
-timestamp: 2026-05-17T04:02:11Z
-branch: fix/auth-routing
-commit: a1b2c3d (optional)
-changed_files:
-  - src/middleware/auth.ts
-  - src/routes/index.ts
----
-
-# Auth Routing Debug
-
-## Implementation Summary
-Fixed a race condition in the auth middleware where the session token was evaluated before the refresh cycle completed.
-
-## AI Reasoning
-The issue occurs because `getSession()` is asynchronous, but the route guard was falling back to a cached null state if the promise didn't resolve immediately. I introduced a deterministic wait state in the router configuration to ensure the auth payload is fully hydrated.
-
-## Risks / Open Questions
-- This might introduce a minor latency spike (approx 50ms) on cold loads. We should monitor frontend routing performance metrics.
-```
-
-## Current Exploration Goals
-
-- Validate the core hypothesis: Does preserving AI traces locally reduce cognitive load during context switching?
-- Identify the minimal metadata required (timestamps, branches, file references) to make logs useful.
-- Observe how developers naturally search or scan these plain-text logs during debugging.
-
-## Open Questions
-
-- When a file is refactored, how do we intuitively map historical cognitive traces to the new file structure without heavy indexing?
-- What is the most frictionless way to trigger log creation from existing AI tooling?
+- **Semantic Extraction:** Building parsers to separate the terminal rendering layer from the semantic layer, extracting clean Markdown reasoning summaries without losing the original fidelity.
+- **Context Mapping:** Exploring how to intuitively map historical cognitive traces to the evolving file structure (e.g., when a file is renamed or refactored).
+- **Trigger Mechanisms:** Identifying the most frictionless ways to start and stop logging contexts during complex workflows.
 
 ---
 *MindDiff is a continued exploration into building resilient human-AI engineering workflows.*

@@ -16,7 +16,7 @@ export function watchCommand() {
     stdio: 'inherit'
   });
 
-  tail.on('close', (code) => {
+  tail.on('close', (code: number | null) => {
     process.exit(code ?? 0);
   });
 }

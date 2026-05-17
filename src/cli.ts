@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { geminiCommand } from './commands/gemini';
 import { watchCommand } from './commands/watch';
 

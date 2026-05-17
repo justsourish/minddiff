@@ -2,10 +2,17 @@
   "name": "minddiff",
   "version": "1.0.0",
   "description": "> Preserving cognitive traces alongside repository evolution.",
-  "main": "index.js",
-  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "minddiff": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "tsx src/cli.ts",
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bugs": {
